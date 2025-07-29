@@ -10,10 +10,10 @@ export interface PackingItem {
   rowIndex: number;
   timestamp: string;
   manufactureDate: string;
-  productName: string;
-  quantity: number;
-  location: string;
-  column52: string;
+  seasoningType: string;    // 味付け種類（旧: productName）
+  fishType: string;         // 魚種（新規追加）
+  quantity: number;         // 数量
+  manufactureProduct: string; // 製造商品（新規追加）
   status: '未処理' | '完了';
   packingInfo: {
     location: string;
