@@ -182,11 +182,11 @@ export async function searchPackingData(filters: {
       });
     }
 
-    if (filters.product) {
-      filteredData = filteredData.filter(item =>
-        item.productName.includes(filters.product!)
-      );
-    }
+if (filters.product) {
+  filteredData = filteredData.filter(item =>
+    item.seasoningType.includes(filters.product!)  // productNameからseasoningTypeに変更
+  );
+}
 
     if (filters.status) {
       filteredData = filteredData.filter(item => 
