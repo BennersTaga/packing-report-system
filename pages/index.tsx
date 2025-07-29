@@ -353,18 +353,22 @@ const PackingCard: React.FC<{
       </div>
 
       <div className="space-y-3 mb-6">
-        <div className="flex justify-between py-2 border-b">
-          <span className="text-gray-600">製品名</span>
-          <span className="font-medium">{item.productName || '未設定'}</span>
-        </div>
-        <div className="flex justify-between py-2 border-b">
-          <span className="text-gray-600">数量</span>
-          <span className="font-medium">{item.quantity}個</span>
-        </div>
-        <div className="flex justify-between py-2 border-b">
-          <span className="text-gray-600">場所</span>
-          <span className="font-medium">{item.location || '未設定'}</span>
-        </div>
+       <div className="flex justify-between py-2 border-b">
+  <span className="text-gray-600">味付け種類</span>
+  <span className="font-medium">{item.seasoningType || '未設定'}</span>
+</div>
+<div className="flex justify-between py-2 border-b">
+  <span className="text-gray-600">魚種</span>
+  <span className="font-medium">{item.fishType || '未設定'}</span>
+</div>
+<div className="flex justify-between py-2 border-b">
+  <span className="text-gray-600">数量</span>
+  <span className="font-medium">{item.quantity}個</span>
+</div>
+<div className="flex justify-between py-2 border-b">
+  <span className="text-gray-600">製造商品</span>
+  <span className="font-medium">{item.manufactureProduct || '未設定'}</span>
+</div>
       </div>
 
       <div className="space-y-4">
