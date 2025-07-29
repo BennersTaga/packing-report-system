@@ -1,15 +1,9 @@
-import { google } from 'googleapis';
 import { COLUMN_MAPPING } from './constants';
-
-// Google Sheets認証設定（APIキー使用）
-const sheets = google.sheets({ 
-  version: 'v4',
-  auth: process.env.GOOGLE_API_KEY
-});
 
 // スプレッドシート設定
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const SHEET_NAME = process.env.GOOGLE_SHEETS_NAME || '修正用シート';
+const API_KEY = process.env.GOOGLE_API_KEY;
 
 // 型定義
 export interface PackingItem {
@@ -57,7 +51,7 @@ function formatDate(date: any): string {
   return `${year}/${month}/${day}`;
 }
 
-// データ取得
+// データ取得（APIキーを使用）
 export async function getPackingData(): Promise<{
   success: boolean;
   data?: PackingItem[];
@@ -65,13 +59,17 @@ export async function getPackingData(): Promise<{
   error?: string;
 }> {
   try {
-    // スプレッドシートのデータを取得
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:CJ`, // A列からCJ列まで取得
-    });
+    // Google Sheets API v4のREST APIを直接呼び出す
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A:CJ?key=${API_KEY}`;
+    
+    const response = await fetch(url);
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error?.message || 'APIエラー');
+    }
 
-    const rows = response.data.values || [];
+    const rows = result.values || [];
     
     if (rows.length <= 1) {
       return { success: true, data: [], stats: { total: 0, pending: 0, completed: 0, todayCompleted: 0 } };
@@ -79,7 +77,6 @@ export async function getPackingData(): Promise<{
 
     // ヘッダー行を除いてデータを処理
     const packingItems: PackingItem[] = [];
-    const headers = rows[0];
     
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
@@ -138,7 +135,7 @@ export async function getPackingData(): Promise<{
   }
 }
 
-// 梱包情報を更新
+// 梱包情報を更新（読み取り専用のため、この関数は動作しません）
 export async function updatePackingInfo(
   rowIndex: number,
   packingData: {
@@ -147,51 +144,11 @@ export async function updatePackingInfo(
     user?: string;
   }
 ): Promise<{ success: boolean; message?: string; error?: string }> {
-  try {
-    const now = new Date();
-    const updates = [
-      {
-        range: `${SHEET_NAME}!${COLUMN_MAPPING.PACKING_STATUS}${rowIndex}`,
-        values: [['完了']],
-      },
-      {
-        range: `${SHEET_NAME}!${COLUMN_MAPPING.PACKING_LOCATION}${rowIndex}`,
-        values: [[packingData.location]],
-      },
-      {
-        range: `${SHEET_NAME}!${COLUMN_MAPPING.PACKING_QUANTITY}${rowIndex}`,
-        values: [[packingData.quantity]],
-      },
-      {
-        range: `${SHEET_NAME}!${COLUMN_MAPPING.PACKING_DATE}${rowIndex}`,
-        values: [[now.toISOString()]],
-      },
-      {
-        range: `${SHEET_NAME}!${COLUMN_MAPPING.PACKING_USER}${rowIndex}`,
-        values: [[packingData.user || 'システム']],
-      },
-    ];
-
-    // バッチ更新
-    await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
-      requestBody: {
-        data: updates,
-        valueInputOption: 'USER_ENTERED',
-      },
-    });
-
-    return {
-      success: true,
-      message: '梱包情報を更新しました',
-    };
-  } catch (error) {
-    console.error('更新エラー:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '更新に失敗しました',
-    };
-  }
+  // APIキーでは書き込みができないため、エラーを返す
+  return {
+    success: false,
+    error: 'APIキーでは書き込み操作はできません。Service Accountが必要です。',
+  };
 }
 
 // 検索機能
