@@ -1,13 +1,11 @@
 import { google } from 'googleapis';
 import { COLUMN_MAPPING } from './constants';
 
-// Google Sheets認証設定
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+// Google Sheets認証設定（APIキー使用）
+const sheets = google.sheets({ 
+  version: 'v4',
+  auth: process.env.GOOGLE_API_KEY
 });
-
-const sheets = google.sheets({ version: 'v4', auth });
 
 // スプレッドシート設定
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
