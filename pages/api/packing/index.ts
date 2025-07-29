@@ -45,22 +45,22 @@ export default async function handler(
       const row = rows[i];
       if (!row[0]) continue;
 
-      items.push({
-        rowIndex: i + 1,
-        timestamp: row[0] || '',
-        manufactureDate: row[1] || '',
-        productName: row[4] || '',
-        quantity: parseInt(row[7]) || 0,
-        location: row[9] || '',
-        column52: row[51] || '',
-        status: row[83] === '完了' ? '完了' : '未処理',
-        packingInfo: {
-          location: row[84] || '',
-          quantity: row[85] || '',
-          date: row[86] || '',
-          user: row[87] || ''
-        }
-      });
+items.push({
+  rowIndex: i + 1,
+  timestamp: row[0] || '',
+  manufactureDate: row[1] || '',  // B列: 製造日
+  seasoningType: row[6] || '',     // G列: 味付け種類
+  fishType: row[9] || '',          // J列: 魚種
+  quantity: parseInt(row[8]) || 0, // I列: 数量
+  manufactureProduct: row[48] || '', // AW列: 製造商品（AWは49番目）
+  status: row[83] === '完了' ? '完了' : '未処理',
+  packingInfo: {
+    location: row[84] || '',
+    quantity: row[85] || '',
+    date: row[86] || '',
+    user: row[87] || ''
+  }
+});
     }
 
     const stats = {
