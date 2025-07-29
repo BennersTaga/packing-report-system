@@ -10,10 +10,11 @@ export interface PackingItem {
   rowIndex: number;
   timestamp: string;
   manufactureDate: string;
-  seasoningType: string;    // 味付け種類（旧: productName）
-  fishType: string;         // 魚種（新規追加）
-  quantity: number;         // 数量
-  manufactureProduct: string; // 製造商品（新規追加）
+  seasoningType: string;
+  fishType: string;
+  origin: string;              // 産地（新規追加）
+  quantity: number;
+  manufactureProduct: string;
   status: '未処理' | '完了';
   packingInfo: {
     location: string;
@@ -88,14 +89,15 @@ export async function getPackingData(): Promise<{
       const statusColIndex = columnLetterToIndex(COLUMN_MAPPING.PACKING_STATUS) - 1;
       const isCompleted = row[statusColIndex] === '完了';
 
-    const item: PackingItem = {
+const item: PackingItem = {
   rowIndex: i + 1,
   timestamp: row[0] ? formatDate(row[0]) : '',
   manufactureDate: row[1] ? formatDate(row[1]) : '',
-  seasoningType: row[6] || '',     // G列: 味付け種類（productNameから変更）
-  fishType: row[9] || '',          // J列: 魚種（新規追加）
-  quantity: parseInt(row[8]) || 0, // I列: 数量
-  manufactureProduct: row[48] || '', // AW列: 製造商品（新規追加）
+  seasoningType: row[6] || '',
+  fishType: row[9] || '',
+  origin: row[7] || '',          // H列: 産地（新規追加）
+  quantity: parseInt(row[8]) || 0,
+  manufactureProduct: row[48] || '',
   status: isCompleted ? '完了' : '未処理',
   packingInfo: {
     location: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_LOCATION) - 1] || '',
