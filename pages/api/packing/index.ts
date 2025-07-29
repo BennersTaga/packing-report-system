@@ -48,12 +48,12 @@ export default async function handler(
 items.push({
   rowIndex: i + 1,
   timestamp: row[0] || '',
-  manufactureDate: row[1] || '',  // B列: 製造日
-      seasoningType: row[6] || '',     // G列: 味付け種類
-      fishType: row[9] || '',          // J列: 魚種
-      origin: row[7] || '',            // H列: 産地（新規追加）
-      quantity: parseInt(row[8]) || 0, // I列: 数量
-  manufactureProduct: row[48] || '', // AW列: 製造商品（AWは49番目）
+  manufactureDate: row[1] || '',
+  seasoningType: row[6] || '',
+  fishType: row[9] || '',
+  origin: row[7] || '',           // H列: 産地（追加）
+  quantity: parseInt(row[8]) || 0,
+  manufactureProduct: row[48] || '',
   status: row[83] === '完了' ? '完了' : '未処理',
   packingInfo: {
     location: row[84] || '',
