@@ -88,22 +88,22 @@ export async function getPackingData(): Promise<{
       const statusColIndex = columnLetterToIndex(COLUMN_MAPPING.PACKING_STATUS) - 1;
       const isCompleted = row[statusColIndex] === '完了';
 
-      const item: PackingItem = {
-        rowIndex: i + 1, // スプレッドシートの行番号（1始まり）
-        timestamp: row[0] ? formatDate(row[0]) : '',
-        manufactureDate: row[1] ? formatDate(row[1]) : '',
-        productName: row[4] || '', // E列
-        quantity: parseInt(row[7]) || 0, // H列
-        location: row[9] || '', // J列
-        column52: row[51] || '', // AZ列
-        status: isCompleted ? '完了' : '未処理',
-        packingInfo: {
-          location: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_LOCATION) - 1] || '',
-          quantity: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_QUANTITY) - 1] || '',
-          date: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_DATE) - 1] || '',
-          user: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_USER) - 1] || '',
-        },
-      };
+    const item: PackingItem = {
+  rowIndex: i + 1,
+  timestamp: row[0] ? formatDate(row[0]) : '',
+  manufactureDate: row[1] ? formatDate(row[1]) : '',
+  seasoningType: row[6] || '',     // G列: 味付け種類（productNameから変更）
+  fishType: row[9] || '',          // J列: 魚種（新規追加）
+  quantity: parseInt(row[8]) || 0, // I列: 数量
+  manufactureProduct: row[48] || '', // AW列: 製造商品（新規追加）
+  status: isCompleted ? '完了' : '未処理',
+  packingInfo: {
+    location: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_LOCATION) - 1] || '',
+    quantity: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_QUANTITY) - 1] || '',
+    date: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_DATE) - 1] || '',
+    user: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_USER) - 1] || '',
+  },
+};
 
       packingItems.push(item);
     }
