@@ -50,8 +50,6 @@ const Home: NextPage = () => {
   // 初回読み込みと定期更新
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
   }, []);
 
   // フィルター適用
