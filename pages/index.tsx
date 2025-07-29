@@ -210,18 +210,18 @@ const Home: NextPage = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  製品名
-                </label>
-                <input
-                  type="text"
-                  value={filters.product}
-                  onChange={(e) => setFilters({ ...filters, product: e.target.value })}
-                  placeholder="製品名で検索"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-              </div>
+             <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    味付け種類
+  </label>
+  <input
+    type="text"
+    value={filters.product}
+    onChange={(e) => setFilters({ ...filters, product: e.target.value })}
+    placeholder="味付け種類で検索"
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+  />
+</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   ステータス
@@ -434,19 +434,27 @@ const CompletedCard: React.FC<{ item: PackingItem }> = ({ item }) => {
         <span className="text-sm text-gray-500">Row #{item.rowIndex}</span>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex justify-between py-2 border-b">
-          <span className="text-gray-600">製品名</span>
-          <span className="font-medium">{item.productName || '未設定'}</span>
-        </div>
-        <div className="flex justify-between py-2 border-b">
-          <span className="text-gray-600">数量</span>
-          <span className="font-medium">{item.quantity}個</span>
-        </div>
-        <div className="flex justify-between py-2 border-b">
-          <span className="text-gray-600">保管場所</span>
-          <span className="font-medium">{item.packingInfo.location}</span>
-        </div>
+<div className="space-y-3">
+  <div className="flex justify-between py-2 border-b">
+    <span className="text-gray-600">味付け種類</span>
+    <span className="font-medium">{item.seasoningType || '未設定'}</span>
+  </div>
+  <div className="flex justify-between py-2 border-b">
+    <span className="text-gray-600">魚種</span>
+    <span className="font-medium">{item.fishType || '未設定'}</span>
+  </div>
+  <div className="flex justify-between py-2 border-b">
+    <span className="text-gray-600">数量</span>
+    <span className="font-medium">{item.quantity}個</span>
+  </div>
+  <div className="flex justify-between py-2 border-b">
+    <span className="text-gray-600">製造商品</span>
+    <span className="font-medium">{item.manufactureProduct || '未設定'}</span>
+  </div>
+  <div className="flex justify-between py-2 border-b">
+    <span className="text-gray-600">保管場所</span>
+    <span className="font-medium">{item.packingInfo.location}</span>
+  </div>
         <div className="flex justify-between py-2 border-b">
           <span className="text-gray-600">保管数量</span>
           <span className="font-medium">{item.packingInfo.quantity}個</span>
