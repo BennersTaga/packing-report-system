@@ -154,24 +154,46 @@ const Home: NextPage = () => {
             </h1>
 
             {/* 統計情報 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-purple-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-                <p className="text-sm text-gray-600">合計</p>
-                <p className="text-2xl font-bold text-purple-600">{stats.total}</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-                <p className="text-sm text-gray-600">未処理</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.pending}</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-                <p className="text-sm text-gray-600">本日処理済</p>
-                <p className="text-2xl font-bold text-green-600">{stats.todayCompleted}</p>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-                <p className="text-sm text-gray-600">累計処理済</p>
-                <p className="text-2xl font-bold text-gray-600">{stats.completed}</p>
-              </div>
-            </div>
+            {/* 統計情報と更新ボタン */}
+<div className="flex flex-wrap items-center gap-4">
+  <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="bg-purple-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+      <p className="text-sm text-gray-600">合計</p>
+      <p className="text-2xl font-bold text-purple-600">{stats.total}</p>
+    </div>
+    <div className="bg-blue-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+      <p className="text-sm text-gray-600">未処理</p>
+      <p className="text-2xl font-bold text-blue-600">{stats.pending}</p>
+    </div>
+    <div className="bg-green-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+      <p className="text-sm text-gray-600">本日処理済</p>
+      <p className="text-2xl font-bold text-green-600">{stats.todayCompleted}</p>
+    </div>
+    <div className="bg-gray-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+      <p className="text-sm text-gray-600">累計処理済</p>
+      <p className="text-2xl font-bold text-gray-600">{stats.completed}</p>
+    </div>
+  </div>
+  <button
+    onClick={fetchData}
+    disabled={loading}
+    className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    {loading ? (
+      <>
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+        <span>更新中...</span>
+      </>
+    ) : (
+      <>
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>更新</span>
+      </>
+    )}
+  </button>
+</div>
           </div>
 
           {/* フィルター */}
