@@ -64,7 +64,7 @@ const Home: NextPage = () => {
       if (filters.quantityMin) queryParams.append('quantityMin', filters.quantityMin);
       if (filters.quantityMax) queryParams.append('quantityMax', filters.quantityMax);
 
-      const response = await fetch(`${API_ENDPOINTS.SEARCH_PACKING}?${queryParams}`);
+      const response = await fetch(process.env.NEXT_PUBLIC_GAS_WEBAPP_URL);
       const data = await response.json();
 
       if (data.success) {
@@ -103,20 +103,18 @@ const Home: NextPage = () => {
     }
 
     try {
-      const response = await fetch(API_ENDPOINTS.UPDATE_PACKING, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          rowIndex,
-          packingData: {
-            location,
-            quantity,
-            user: 'システム', // 実際にはセッションから取得
-          },
-        }),
-      });
+const response = await fetch(process.env.NEXT_PUBLIC_GAS_WEBAPP_URL, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    rowIndex,
+    location,
+    quantity,
+    user: 'システム',
+  }),
+});
 
       const data = await response.json();
 
