@@ -4,7 +4,7 @@ import Head from 'next/head';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import toast, { Toaster } from 'react-hot-toast';
-import { PackingItem, PackingStats } from '../lib/google-sheets';
+import { PackingItem, PackingStats } from '../lib/gas-sheets';
 import { STORAGE_LOCATIONS, REFRESH_INTERVAL, API_ENDPOINTS } from '../lib/constants';
 
 const Home: NextPage = () => {
