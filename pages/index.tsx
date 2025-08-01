@@ -29,7 +29,7 @@ const Home: NextPage = () => {
   // データ取得
   const fetchData = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.PACKING_DATA);
+      const response = await fetch(process.env.NEXT_PUBLIC_GAS_WEBAPP_URL);
       const data = await response.json();
 
       if (data.success) {
