@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { searchPackingData } from '../../../lib/google-sheets';
+import { searchPackingData } from '../../../lib/gas-sheets';
 
 export default async function handler(
   req: NextApiRequest,
