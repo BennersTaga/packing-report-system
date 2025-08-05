@@ -1,8 +1,7 @@
-// lib/gas-sheets.ts（Google Apps Script連携版）
+// GASのWebアプリURLを使用するバージョン
+const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL; // 環境変数で設定
 
-// Google Apps Script WebアプリのURL（環境変数から取得）
-const GAS_WEBAPP_URL = process.env.NEXT_PUBLIC_GAS_WEBAPP_URL;
-
+// 型定義
 export interface PackingItem {
   rowIndex: number;
   timestamp: string;
@@ -11,6 +10,9 @@ export interface PackingItem {
   fishType: string;
   origin: string;
   quantity: number;
+  originalQuantity?: number;
+  totalPackedQuantity?: number;
+  packingCount?: number;
   manufactureProduct: string;
   status: '未処理' | '完了';
   packingInfo: {
@@ -19,6 +21,7 @@ export interface PackingItem {
     date: string;
     user: string;
   };
+  allPackingDetails?: any[];
 }
 
 export interface PackingStats {
@@ -28,7 +31,7 @@ export interface PackingStats {
   todayCompleted: number;
 }
 
-// データ取得（完全無料）
+// GASからデータを取得
 export async function getPackingData(): Promise<{
   success: boolean;
   data?: PackingItem[];
@@ -36,46 +39,34 @@ export async function getPackingData(): Promise<{
   error?: string;
 }> {
   try {
-    if (!GAS_WEBAPP_URL) {
-      throw new Error('GAS_WEBAPP_URL が設定されていません');
+    if (!GAS_WEB_APP_URL) {
+      throw new Error('GAS_WEB_APP_URL が設定されていません');
     }
 
-    const response = await fetch(GAS_WEBAPP_URL, {
+    const response = await fetch(GAS_WEB_APP_URL, {
       method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP Error: ${response.status}`);
     }
 
     const result = await response.json();
     
     if (!result.success) {
-      throw new Error(result.error || 'データ取得に失敗しました');
+      throw new Error(result.error || 'GASからのエラー');
     }
-
-    const items = result.data || [];
-
-    // 統計情報を計算
-    const today = new Date().toDateString();
-    const stats: PackingStats = {
-      total: items.length,
-      pending: items.filter((item: PackingItem) => item.status === '未処理').length,
-      completed: items.filter((item: PackingItem) => item.status === '完了').length,
-      todayCompleted: items.filter((item: PackingItem) => {
-        if (item.status !== '完了' || !item.packingInfo.date) return false;
-        const itemDate = new Date(item.packingInfo.date).toDateString();
-        return today === itemDate;
-      }).length,
-    };
 
     return {
       success: true,
-      data: items,
-      stats,
+      data: result.data,
+      stats: result.stats,
     };
   } catch (error) {
-    console.error('データ取得エラー:', error);
+    console.error('GASデータ取得エラー:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'データの取得に失敗しました',
@@ -83,7 +74,7 @@ export async function getPackingData(): Promise<{
   }
 }
 
-// 梱包情報を更新（完全無料）
+// 梱包情報を更新（GAS経由）
 export async function updatePackingInfo(
   rowIndex: number,
   packingData: {
@@ -93,39 +84,38 @@ export async function updatePackingInfo(
   }
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    if (!GAS_WEBAPP_URL) {
-      throw new Error('GAS_WEBAPP_URL が設定されていません');
+    if (!GAS_WEB_APP_URL) {
+      throw new Error('GAS_WEB_APP_URL が設定されていません');
     }
 
-    const response = await fetch(GAS_WEBAPP_URL, {
+    const response = await fetch(GAS_WEB_APP_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        action: 'updatePacking',
         rowIndex,
-        location: packingData.location,
-        quantity: packingData.quantity,
-        user: packingData.user || 'システム',
+        packingData,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP Error: ${response.status}`);
     }
 
     const result = await response.json();
-
-    if (result.success) {
-      return {
-        success: true,
-        message: '梱包情報を正常に更新しました',
-      };
-    } else {
-      throw new Error(result.error || '更新に失敗しました');
+    
+    if (!result.success) {
+      throw new Error(result.error || 'GASからのエラー');
     }
+
+    return {
+      success: true,
+      message: result.message,
+    };
   } catch (error) {
-    console.error('更新エラー:', error);
+    console.error('GAS更新エラー:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : '更新に失敗しました',
@@ -133,7 +123,7 @@ export async function updatePackingInfo(
   }
 }
 
-// 検索機能（完全無料）
+// 検索機能（GAS経由）
 export async function searchPackingData(filters: {
   date?: string;
   product?: string;
@@ -147,38 +137,57 @@ export async function searchPackingData(filters: {
   error?: string;
 }> {
   try {
-    // まず全データを取得
-    const result = await getPackingData();
-    
-    if (!result.success || !result.data) {
-      return result;
+    if (!GAS_WEB_APP_URL) {
+      throw new Error('GAS_WEB_APP_URL が設定されていません');
     }
 
+    // GASにクエリパラメータとして送信
+    const queryParams = new URLSearchParams();
+    if (filters.date) queryParams.append('date', filters.date);
+    if (filters.product) queryParams.append('product', filters.product);
+    if (filters.status) queryParams.append('status', filters.status);
+    if (filters.quantityMin !== undefined) queryParams.append('quantityMin', filters.quantityMin.toString());
+    if (filters.quantityMax !== undefined) queryParams.append('quantityMax', filters.quantityMax.toString());
+
+    const url = `${GAS_WEB_APP_URL}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'GASからのエラー');
+    }
+
+    // クライアント側でフィルタリング（GASでは日付フィルターのみ実装）
     let filteredData = result.data;
 
-    // フィルター適用
-    if (filters.date) {
-      const filterDate = new Date(filters.date).toDateString();
-      filteredData = filteredData.filter(item => {
-        const itemDate = new Date(item.manufactureDate).toDateString();
-        return itemDate === filterDate;
-      });
-    }
-
+    // 味付け種類フィルター
     if (filters.product) {
-      filteredData = filteredData.filter(item =>
-        item.seasoningType.includes(filters.product!)
+      filteredData = filteredData.filter((item: PackingItem) =>
+        item.seasoningType && item.seasoningType.includes(filters.product!)
       );
     }
 
+    // ステータスフィルター
     if (filters.status) {
-      filteredData = filteredData.filter(item => 
+      filteredData = filteredData.filter((item: PackingItem) => 
         item.status === filters.status
       );
     }
 
+    // 数量フィルター
     if (filters.quantityMin !== undefined || filters.quantityMax !== undefined) {
-      filteredData = filteredData.filter(item => {
+      filteredData = filteredData.filter((item: PackingItem) => {
         const quantity = item.quantity;
         const min = filters.quantityMin || 0;
         const max = filters.quantityMax || Infinity;
@@ -190,12 +199,16 @@ export async function searchPackingData(filters: {
     const today = new Date().toDateString();
     const stats: PackingStats = {
       total: filteredData.length,
-      pending: filteredData.filter(item => item.status === '未処理').length,
-      completed: filteredData.filter(item => item.status === '完了').length,
-      todayCompleted: filteredData.filter(item => {
+      pending: filteredData.filter((item: PackingItem) => item.status === '未処理').length,
+      completed: filteredData.filter((item: PackingItem) => item.status === '完了').length,
+      todayCompleted: filteredData.filter((item: PackingItem) => {
         if (item.status !== '完了' || !item.packingInfo.date) return false;
-        const itemDate = new Date(item.packingInfo.date).toDateString();
-        return today === itemDate;
+        try {
+          const itemDate = new Date(item.packingInfo.date).toDateString();
+          return today === itemDate;
+        } catch (error) {
+          return false;
+        }
       }).length,
     };
 
@@ -205,7 +218,7 @@ export async function searchPackingData(filters: {
       stats,
     };
   } catch (error) {
-    console.error('検索エラー:', error);
+    console.error('GAS検索エラー:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : '検索に失敗しました',
