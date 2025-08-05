@@ -18,8 +18,10 @@ const Home: NextPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
+　const today = format(new Date(), 'yyyy-MM-dd');
+
   const [filters, setFilters] = useState({
-    date: '',
+    date: today, // ここを空文字から今日の日付に変更
     product: '',
     status: '',
     quantityMin: '',
@@ -49,7 +51,7 @@ const Home: NextPage = () => {
 
   // 初回読み込みと定期更新
   useEffect(() => {
-    fetchData();
+    applyFilters(); // fetchData()からapplyFilters()に変更
   }, []);
 
   // フィルター適用
