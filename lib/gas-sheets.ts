@@ -1,5 +1,5 @@
 // GASのWebアプリURLを使用するバージョン
-const GAS_WEB_APP_URL = process.env.GAS_WEB_APP_URL; // 環境変数で設定
+const GAS_WEB_APP_URL = process.env.NEXT_PUBLIC_GAS_WEBAPP_URL;
 
 // 型定義
 export interface PackingItem {
