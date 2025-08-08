@@ -18,7 +18,7 @@ const Home: NextPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
-　const today = format(new Date(), 'yyyy-MM-dd');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const [filters, setFilters] = useState({
     date: today, // ここを空文字から今日の日付に変更

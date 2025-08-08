@@ -1,5 +1,5 @@
-// GASのWebアプリURLを使用するバージョン
-const GAS_WEB_APP_URL = process.env.NEXT_PUBLIC_GAS_WEBAPP_URL;
+// GASのWebアプリURLを環境変数から取得
+const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT;
 
 // 型定義
 export interface PackingItem {
@@ -39,11 +39,14 @@ export async function getPackingData(): Promise<{
   error?: string;
 }> {
   try {
-    if (!GAS_WEB_APP_URL) {
-      throw new Error('GAS_WEB_APP_URL が設定されていません');
+    if (!GAS_ENDPOINT) {
+      return {
+        success: false,
+        error: 'GAS endpoint is not configured'
+      };
     }
 
-    const response = await fetch(GAS_WEB_APP_URL, {
+    const response = await fetch(GAS_ENDPOINT, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -84,11 +87,11 @@ export async function updatePackingInfo(
   }
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    if (!GAS_WEB_APP_URL) {
-      throw new Error('GAS_WEB_APP_URL が設定されていません');
+    if (!GAS_ENDPOINT) {
+      throw new Error('NEXT_PUBLIC_GAS_ENDPOINT が設定されていません');
     }
 
-    const response = await fetch(GAS_WEB_APP_URL, {
+    const response = await fetch(GAS_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -137,8 +140,11 @@ export async function searchPackingData(filters: {
   error?: string;
 }> {
   try {
-    if (!GAS_WEB_APP_URL) {
-      throw new Error('GAS_WEB_APP_URL が設定されていません');
+    if (!GAS_ENDPOINT) {
+      return {
+        success: false,
+        error: 'GAS endpoint is not configured'
+      };
     }
 
     // GASにクエリパラメータとして送信
@@ -149,7 +155,7 @@ export async function searchPackingData(filters: {
     if (filters.quantityMin !== undefined) queryParams.append('quantityMin', filters.quantityMin.toString());
     if (filters.quantityMax !== undefined) queryParams.append('quantityMax', filters.quantityMax.toString());
 
-    const url = `${GAS_WEB_APP_URL}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const url = `${GAS_ENDPOINT}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',
