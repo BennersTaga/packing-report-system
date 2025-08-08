@@ -76,6 +76,9 @@ export async function getPackingData(): Promise<{
       return { success: true, data: [], stats: { total: 0, pending: 0, completed: 0, todayCompleted: 0 } };
     }
 
+    // 🔥 フィルター基準日を設定
+    const filterStartDate = new Date('2025-08-08');
+
     // ヘッダー行を除いてデータを処理
     const packingItems: PackingItem[] = [];
     
@@ -85,27 +88,34 @@ export async function getPackingData(): Promise<{
       // タイムスタンプがない行はスキップ
       if (!row[0]) continue;
 
+      // 🔥 製造日フィルタリング（2025年8月8日より前はスキップ）
+      const manufactureDate = row[1];
+      if (manufactureDate) {
+        const itemDate = new Date(manufactureDate);
+        if (itemDate < filterStartDate) continue;
+      }
+
       // 梱包ステータスを確認
       const statusColIndex = columnLetterToIndex(COLUMN_MAPPING.PACKING_STATUS) - 1;
       const isCompleted = row[statusColIndex] === '完了';
 
-const item: PackingItem = {
-  rowIndex: i + 1,
-  timestamp: row[0] ? formatDate(row[0]) : '',
-  manufactureDate: row[1] ? formatDate(row[1]) : '',
-  seasoningType: row[6] || '',
-  fishType: row[9] || '',
-  origin: row[7] || '',          // H列: 産地（新規追加）
-  quantity: parseInt(row[8]) || 0,
-  manufactureProduct: row[48] || '',
-  status: isCompleted ? '完了' : '未処理',
-  packingInfo: {
-    location: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_LOCATION) - 1] || '',
-    quantity: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_QUANTITY) - 1] || '',
-    date: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_DATE) - 1] || '',
-    user: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_USER) - 1] || '',
-  },
-};
+      const item: PackingItem = {
+        rowIndex: i + 1,
+        timestamp: row[0] ? formatDate(row[0]) : '',
+        manufactureDate: row[1] ? formatDate(row[1]) : '',
+        seasoningType: row[6] || '',
+        fishType: row[9] || '',
+        origin: row[7] || '',          // H列: 産地（新規追加）
+        quantity: parseInt(row[8]) || 0,
+        manufactureProduct: row[48] || '',
+        status: isCompleted ? '完了' : '未処理',
+        packingInfo: {
+          location: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_LOCATION) - 1] || '',
+          quantity: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_QUANTITY) - 1] || '',
+          date: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_DATE) - 1] || '',
+          user: row[columnLetterToIndex(COLUMN_MAPPING.PACKING_USER) - 1] || '',
+        },
+      };
 
       packingItems.push(item);
     }
@@ -184,11 +194,11 @@ export async function searchPackingData(filters: {
       });
     }
 
-if (filters.product) {
-  filteredData = filteredData.filter(item =>
-    item.seasoningType.includes(filters.product!)  // productNameからseasoningTypeに変更
-  );
-}
+    if (filters.product) {
+      filteredData = filteredData.filter(item =>
+        item.seasoningType.includes(filters.product!)  // productNameからseasoningTypeに変更
+      );
+    }
 
     if (filters.status) {
       filteredData = filteredData.filter(item => 
