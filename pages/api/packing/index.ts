@@ -39,11 +39,22 @@ export default async function handler(
       });
     }
 
+    // 2025年8月8日のフィルター基準日を設定
+    const filterStartDate = new Date('2025-08-08');
+
     // 簡易的なデータ変換
     const items = [];
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row[0]) continue;
+
+      // 🔥 新規追加: 製造日フィルタリング
+      const manufactureDate = row[1];
+      if (manufactureDate) {
+        const itemDate = new Date(manufactureDate);
+        // 2025年8月8日より前のデータはスキップ
+        if (itemDate < filterStartDate) continue;
+      }
 
 items.push({
   rowIndex: i + 1,
