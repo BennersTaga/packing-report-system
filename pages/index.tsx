@@ -4,7 +4,7 @@ import Head from 'next/head';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import toast, { Toaster } from 'react-hot-toast';
-import { PackingItem, PackingStats } from '../lib/gas-sheets';
+import { PackingItem, PackingStats } from '../lib/packing-types';
 import { STORAGE_LOCATIONS, REFRESH_INTERVAL, API_ENDPOINTS } from '../lib/constants';
 
 const Home: NextPage = () => {
@@ -18,7 +18,7 @@ const Home: NextPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
-　const today = format(new Date(), 'yyyy-MM-dd');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const [filters, setFilters] = useState({
     date: today, // ここを空文字から今日の日付に変更
