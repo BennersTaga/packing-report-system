@@ -29,6 +29,7 @@ const Home: NextPage = () => {
 
   // 今日
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+
   // フィルター
   const [filters, setFilters] = useState<Filters>({
     date: today,
@@ -94,15 +95,15 @@ const Home: NextPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
 
-  // 定期更新（任意：REFRESH_INTERVAL が設定されていれば）
+  // 定期更新（REFRESH_INTERVAL が 0/未設定なら無効）
   useEffect(() => {
     if (!REFRESH_INTERVAL || REFRESH_INTERVAL <= 0) return;
     const id = setInterval(() => applyFilters(), REFRESH_INTERVAL);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, REFRESH_INTERVAL]);
+  }, []);
 
-  // フィルターリセット（今日の日付に戻す）
+  // フィルターリセット（今日に戻す）
   const resetFilters = () => {
     const next: Filters = {
       date: today,
@@ -112,7 +113,7 @@ const Home: NextPage = () => {
       quantityMax: '',
     };
     setFilters(next);
-    applyFilters(next); // ← 最新値をそのまま使って検索
+    applyFilters(next); // 最新値で検索
   };
 
   // 梱包完了処理 → 完了後も現在のフィルターで再取得
@@ -134,7 +135,7 @@ const Home: NextPage = () => {
 
       if (data.success) {
         toast.success('梱包が完了しました');
-        await applyFilters(); // ← フィルター維持で再取得
+        await applyFilters(); // フィルター維持で再取得
       } else {
         toast.error(data.error || '更新に失敗しました');
       }
@@ -301,7 +302,9 @@ const Home: NextPage = () => {
                 {pendingItems.length === 0 ? (
                   <div className="col-span-full text-center text-white text-xl py-12">未処理のアイテムはありません</div>
                 ) : (
-                  pendingItems.map((item) => <PackingCard key={item.rowIndex} item={item} onComplete={completeItem} />)
+                  pendingItems.map((item) => (
+                    <PackingCard key={item.rowIndex} item={item} onComplete={completeItem} />
+                  ))
                 )}
               </div>
 

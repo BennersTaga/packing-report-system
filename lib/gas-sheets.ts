@@ -12,7 +12,10 @@ function ensureEndpoint(): string {
   return GAS_ENDPOINT;
 }
 
-function buildUrl(base: string, params?: Record<string, string | number | undefined>) {
+function buildUrl(
+  base: string,
+  params?: Record<string, string | number | undefined>
+) {
   if (!params) return base;
   const search = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -35,13 +38,11 @@ export async function getPackingData(): Promise<{
     const res = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-      // サーバー側で実行想定
       cache: 'no-store',
     });
 
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
     const json = await res.json();
-
     if (!json?.success) throw new Error(json?.error || 'GAS error');
 
     return {
@@ -81,7 +82,6 @@ export async function updatePackingInfo(
 
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
     const json = await res.json();
-
     if (!json?.success) throw new Error(json?.error || 'GAS error');
 
     return { success: true, message: json.message };
@@ -101,7 +101,7 @@ export async function searchPackingData(filters: {
   status?: string;
   quantityMin?: number;
   quantityMax?: number;
-  // 将来の拡張（ページネーションなど）:
+  // 将来拡張（ページネーションなど）
   limit?: number;
   offset?: number;
 }): Promise<{
@@ -130,7 +130,6 @@ export async function searchPackingData(filters: {
 
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
     const json = await res.json();
-
     if (!json?.success) throw new Error(json?.error || 'GAS error');
 
     return {
