@@ -1,13 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { format } from 'date-fns';
+import { ja } from 'date-fns/locale';
 import toast, { Toaster } from 'react-hot-toast';
 import { PackingItem, PackingStats } from '../lib/packing-types';
 import { STORAGE_LOCATIONS, REFRESH_INTERVAL, API_ENDPOINTS } from '../lib/constants';
 
+type Filters = {
+  date: string;
+  product: string;
+  status: string;
+  quantityMin: string;
+  quantityMax: string;
+};
+
 const Home: NextPage = () => {
-  const [items, setItems] = useState<PackingItem[]>([]);
+  // 画面表示用
   const [filteredItems, setFilteredItems] = useState<PackingItem[]>([]);
   const [stats, setStats] = useState<PackingStats>({
     total: 0,
@@ -17,134 +26,128 @@ const Home: NextPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const today = format(new Date(), 'yyyy-MM-dd');
 
-  const [filters, setFilters] = useState({
-    date: today, // ここを空文字から今日の日付に変更
+  // 今日
+  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+
+  // フィルター
+  const [filters, setFilters] = useState<Filters>({
+    date: today,
     product: '',
     status: '',
     quantityMin: '',
     quantityMax: '',
   });
 
-  // データ取得
-  const fetchData = async () => {
-    try {
-      const response = await fetch(API_ENDPOINTS.PACKING_DATA);
-      const data = await response.json();
+  // 直近の AbortController（連続操作時の中断用）
+  const abortRef = useRef<AbortController | null>(null);
 
-      if (data.success) {
-        setItems(data.data);
-        setFilteredItems(data.data);
-        setStats(data.stats);
-      } else {
-        toast.error(data.error || 'データの取得に失敗しました');
-      }
-    } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('データの取得に失敗しました');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 初回読み込みと定期更新
-  useEffect(() => {
-    applyFilters(); // fetchData()からapplyFilters()に変更
-  }, []);
-
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const id = setInterval(() => {
-      applyFilters();
-    }, REFRESH_INTERVAL);
-    return () => clearInterval(id);
-  }, [autoRefresh]);
-
-  // フィルター適用
-  const applyFilters = async () => {
+  /**
+   * フィルター適用（サーバー検索）
+   * - 引数 override を渡すとその値で一時的に上書きして検索
+   * - setFilters の直後でも “最新値” を確実に使えるようにするため
+   */
+  const applyFilters = async (override?: Partial<Filters>) => {
     setLoading(true);
     try {
-      const queryParams = new URLSearchParams();
-      
-      if (filters.date) queryParams.append('date', filters.date);
-      if (filters.product) queryParams.append('product', filters.product);
-      if (filters.status) queryParams.append('status', filters.status);
-      if (filters.quantityMin) queryParams.append('quantityMin', filters.quantityMin);
-      if (filters.quantityMax) queryParams.append('quantityMax', filters.quantityMax);
+      const f: Filters = { ...filters, ...override };
 
-      const response = await fetch(`${API_ENDPOINTS.SEARCH_PACKING}?${queryParams}`);
-      const data = await response.json();
+      // 前回実行が残っていたら中断
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const params = new URLSearchParams();
+      if (f.date) params.append('date', f.date);
+      if (f.product) params.append('product', f.product);
+      if (f.status) params.append('status', f.status);
+      if (f.quantityMin) params.append('quantityMin', f.quantityMin);
+      if (f.quantityMax) params.append('quantityMax', f.quantityMax);
+
+      const res = await fetch(`${API_ENDPOINTS.SEARCH_PACKING}?${params}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
 
       if (data.success) {
-        setFilteredItems(data.data);
-        setStats(data.stats);
-        toast.success('フィルターを適用しました');
+        setFilteredItems(data.data as PackingItem[]);
+        setStats(data.stats as PackingStats);
+        if (!override) toast.success('フィルターを適用しました');
       } else {
         toast.error(data.error || 'フィルターの適用に失敗しました');
       }
-    } catch (error) {
-      console.error('Filter error:', error);
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return; // 中断は無視
+      console.error('Filter error:', e);
       toast.error('フィルターの適用に失敗しました');
     } finally {
       setLoading(false);
     }
   };
 
-  // フィルターリセット
+  // 初回読み込み
+  useEffect(() => {
+    applyFilters({ date: today });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today]);
+
+  // 定期更新（REFRESH_INTERVAL が 0/未設定なら無効）
+  useEffect(() => {
+    if (!REFRESH_INTERVAL || REFRESH_INTERVAL <= 0) return;
+    const id = setInterval(() => applyFilters(), REFRESH_INTERVAL);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // フィルターリセット（今日に戻す）
   const resetFilters = () => {
-    setFilters({
-      date: '',
+    const next: Filters = {
+      date: today,
       product: '',
       status: '',
       quantityMin: '',
       quantityMax: '',
-    });
-    setFilteredItems(items);
-    fetchData();
+    };
+    setFilters(next);
+    applyFilters(next); // 最新値で検索
   };
 
-  // 梱包完了処理
+  // 梱包完了処理 → 完了後も現在のフィルターで再取得
   const completeItem = async (rowIndex: number, location: string, quantity: string) => {
     if (!location || !quantity) {
       toast.error('保管場所と数量を入力してください');
       return;
     }
-
     try {
-      const response = await fetch(API_ENDPOINTS.UPDATE_PACKING, {
+      const res = await fetch(API_ENDPOINTS.UPDATE_PACKING, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rowIndex,
-          packingData: {
-            location,
-            quantity,
-            user: 'システム', // 実際にはセッションから取得
-          },
+          packingData: { location, quantity, user: 'システム' },
         }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
 
       if (data.success) {
         toast.success('梱包が完了しました');
-        await fetchData(); // データを再取得
+        await applyFilters(); // フィルター維持で再取得
       } else {
         toast.error(data.error || '更新に失敗しました');
       }
-    } catch (error) {
-      console.error('Update error:', error);
+    } catch (e) {
+      console.error('Update error:', e);
       toast.error('更新に失敗しました');
     }
   };
 
   // 表示用のアイテムを分ける
-  const pendingItems = filteredItems.filter(item => item.status === '未処理');
-  const completedItems = filteredItems.filter(item => item.status === '完了');
+  const pendingItems = filteredItems.filter((item) => item.status === '未処理');
+  const completedItems = filteredItems.filter((item) => item.status === '完了');
 
   return (
     <>
@@ -163,65 +166,59 @@ const Home: NextPage = () => {
               梱包日報管理システム
             </h1>
 
-            {/* 統計情報 */}
-            {/* 統計情報と更新ボタン */}
-<div className="flex flex-wrap items-center gap-4">
-  <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div className="bg-purple-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-      <p className="text-sm text-gray-600">合計</p>
-      <p className="text-2xl font-bold text-purple-600">{stats.total}</p>
-    </div>
-    <div className="bg-blue-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-      <p className="text-sm text-gray-600">未処理</p>
-      <p className="text-2xl font-bold text-blue-600">{stats.pending}</p>
-    </div>
-    <div className="bg-green-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-      <p className="text-sm text-gray-600">本日処理済</p>
-      <p className="text-2xl font-bold text-green-600">{stats.todayCompleted}</p>
-    </div>
-    <div className="bg-gray-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
-      <p className="text-sm text-gray-600">累計処理済</p>
-      <p className="text-2xl font-bold text-gray-600">{stats.completed}</p>
-    </div>
-  </div>
-  <button
-    onClick={fetchData}
-    disabled={loading}
-    className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    {loading ? (
-      <>
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-        <span>更新中...</span>
-      </>
-    ) : (
-      <>
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span>更新</span>
-      </>
-    )}
-  </button>
-  <label className="flex items-center gap-2 text-sm text-gray-700">
-    <input
-      type="checkbox"
-      checked={autoRefresh}
-      onChange={(e) => setAutoRefresh(e.target.checked)}
-      className="w-4 h-4"
-    />
-    自動更新
-  </label>
-</div>
+            {/* 統計情報＋更新ボタン */}
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-purple-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+                  <p className="text-sm text-gray-600">合計</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.total}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+                  <p className="text-sm text-gray-600">未処理</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.pending}</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+                  <p className="text-sm text-gray-600">本日処理済</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.todayCompleted}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 hover:shadow-lg transition-shadow">
+                  <p className="text-sm text-gray-600">累計処理済</p>
+                  <p className="text-2xl font-bold text-gray-600">{stats.completed}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => applyFilters()}
+                disabled={loading}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>更新中...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    <span>更新</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* フィルター */}
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  製造日
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">製造日</label>
                 <input
                   type="date"
                   value={filters.date}
@@ -229,22 +226,20 @@ const Home: NextPage = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
-             <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    味付け種類
-  </label>
-  <input
-    type="text"
-    value={filters.product}
-    onChange={(e) => setFilters({ ...filters, product: e.target.value })}
-    placeholder="味付け種類で検索"
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-  />
-</div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ステータス
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">味付け種類</label>
+                <input
+                  type="text"
+                  value={filters.product}
+                  onChange={(e) => setFilters({ ...filters, product: e.target.value })}
+                  placeholder="味付け種類で検索"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
                 <select
                   value={filters.status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
@@ -255,10 +250,9 @@ const Home: NextPage = () => {
                   <option value="完了">完了</option>
                 </select>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  数量範囲
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">数量範囲</label>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -276,9 +270,10 @@ const Home: NextPage = () => {
                   />
                 </div>
               </div>
+
               <div className="flex gap-2 items-end">
                 <button
-                  onClick={applyFilters}
+                  onClick={() => applyFilters()}
                   className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
                 >
                   フィルター
@@ -305,16 +300,10 @@ const Home: NextPage = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 {pendingItems.length === 0 ? (
-                  <div className="col-span-full text-center text-white text-xl py-12">
-                    未処理のアイテムはありません
-                  </div>
+                  <div className="col-span-full text-center text-white text-xl py-12">未処理のアイテムはありません</div>
                 ) : (
                   pendingItems.map((item) => (
-                    <PackingCard
-                      key={item.rowIndex}
-                      item={item}
-                      onComplete={completeItem}
-                    />
+                    <PackingCard key={item.rowIndex} item={item} onComplete={completeItem} />
                   ))
                 )}
               </div>
@@ -325,9 +314,7 @@ const Home: NextPage = () => {
                   onClick={() => setShowCompleted(!showCompleted)}
                   className="flex items-center gap-3 text-white text-xl font-semibold mb-6 hover:opacity-80 transition-opacity"
                 >
-                  <div className={`transform transition-transform ${showCompleted ? 'rotate-180' : ''}`}>
-                    ▼
-                  </div>
+                  <div className={`transform transition-transform ${showCompleted ? 'rotate-180' : ''}`}>▼</div>
                   処理済み項目 ({completedItems.length}件)
                 </button>
 
@@ -372,33 +359,31 @@ const PackingCard: React.FC<{
       </div>
 
       <div className="space-y-3 mb-6">
-       <div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">味付け種類</span>
-  <span className="font-medium">{item.seasoningType || '未設定'}</span>
-</div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">魚種</span>
-  <span className="font-medium">{item.fishType || '未設定'}</span>
-</div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">産地</span>
-  <span className="font-medium">{item.origin || '未設定'}</span>
-</div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">数量</span>
-  <span className="font-medium">{item.quantity}個</span>
-</div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">製造商品</span>
-  <span className="font-medium">{item.manufactureProduct || '未設定'}</span>
-</div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">味付け種類</span>
+          <span className="font-medium">{item.seasoningType || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">魚種</span>
+          <span className="font-medium">{item.fishType || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">産地</span>
+          <span className="font-medium">{item.origin || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">数量</span>
+          <span className="font-medium">{item.quantity}個</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">製造商品</span>
+          <span className="font-medium">{item.manufactureProduct || '未設定'}</span>
+        </div>
       </div>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            保管場所
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">保管場所</label>
           <select
             value={location}
             onChange={(e) => setLocation(e.target.value)}
@@ -414,9 +399,7 @@ const PackingCard: React.FC<{
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            保管数量
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">保管数量</label>
           <input
             type="number"
             value={quantity}
@@ -457,31 +440,31 @@ const CompletedCard: React.FC<{ item: PackingItem }> = ({ item }) => {
         <span className="text-sm text-gray-500">Row #{item.rowIndex}</span>
       </div>
 
-<div className="space-y-3">
-  <div className="flex justify-between py-2 border-b">
-    <span className="text-gray-600">味付け種類</span>
-    <span className="font-medium">{item.seasoningType || '未設定'}</span>
-  </div>
-  <div className="flex justify-between py-2 border-b">
-    <span className="text-gray-600">魚種</span>
-    <span className="font-medium">{item.fishType || '未設定'}</span>
-  </div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">産地</span>
-  <span className="font-medium">{item.origin || '未設定'}</span>
-</div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">数量</span>
-  <span className="font-medium">{item.quantity}個</span>
-</div>
-<div className="flex justify-between py-2 border-b">
-  <span className="text-gray-600">製造商品</span>
-  <span className="font-medium">{item.manufactureProduct || '未設定'}</span>
-</div>
-  <div className="flex justify-between py-2 border-b">
-    <span className="text-gray-600">保管場所</span>
-    <span className="font-medium">{item.packingInfo.location}</span>
-  </div>
+      <div className="space-y-3">
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">味付け種類</span>
+          <span className="font-medium">{item.seasoningType || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">魚種</span>
+          <span className="font-medium">{item.fishType || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">産地</span>
+          <span className="font-medium">{item.origin || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">数量</span>
+          <span className="font-medium">{item.quantity}個</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">製造商品</span>
+          <span className="font-medium">{item.manufactureProduct || '未設定'}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b">
+          <span className="text-gray-600">保管場所</span>
+          <span className="font-medium">{item.packingInfo.location}</span>
+        </div>
         <div className="flex justify-between py-2 border-b">
           <span className="text-gray-600">保管数量</span>
           <span className="font-medium">{item.packingInfo.quantity}個</span>
