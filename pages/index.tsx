@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
 import toast, { Toaster } from 'react-hot-toast';
-import { PackingItem, PackingStats } from '../lib/gas-sheets';
+import { PackingItem, PackingStats } from '../lib/packing-types';
 import { STORAGE_LOCATIONS, REFRESH_INTERVAL, API_ENDPOINTS } from '../lib/constants';
 
 const Home: NextPage = () => {
@@ -18,7 +17,8 @@ const Home: NextPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
-　const today = format(new Date(), 'yyyy-MM-dd');
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const [filters, setFilters] = useState({
     date: today, // ここを空文字から今日の日付に変更
@@ -53,6 +53,14 @@ const Home: NextPage = () => {
   useEffect(() => {
     applyFilters(); // fetchData()からapplyFilters()に変更
   }, []);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => {
+      applyFilters();
+    }, REFRESH_INTERVAL);
+    return () => clearInterval(id);
+  }, [autoRefresh]);
 
   // フィルター適用
   const applyFilters = async () => {
@@ -195,6 +203,15 @@ const Home: NextPage = () => {
       </>
     )}
   </button>
+  <label className="flex items-center gap-2 text-sm text-gray-700">
+    <input
+      type="checkbox"
+      checked={autoRefresh}
+      onChange={(e) => setAutoRefresh(e.target.checked)}
+      className="w-4 h-4"
+    />
+    自動更新
+  </label>
 </div>
           </div>
 

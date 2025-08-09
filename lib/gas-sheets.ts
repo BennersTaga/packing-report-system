@@ -1,35 +1,7 @@
-// GASのWebアプリURLを使用するバージョン
-const GAS_WEB_APP_URL = process.env.NEXT_PUBLIC_GAS_WEBAPP_URL;
+import { PackingItem, PackingStats } from './packing-types';
 
-// 型定義
-export interface PackingItem {
-  rowIndex: number;
-  timestamp: string;
-  manufactureDate: string;
-  seasoningType: string;
-  fishType: string;
-  origin: string;
-  quantity: number;
-  originalQuantity?: number;
-  totalPackedQuantity?: number;
-  packingCount?: number;
-  manufactureProduct: string;
-  status: '未処理' | '完了';
-  packingInfo: {
-    location: string;
-    quantity: string;
-    date: string;
-    user: string;
-  };
-  allPackingDetails?: any[];
-}
-
-export interface PackingStats {
-  total: number;
-  pending: number;
-  completed: number;
-  todayCompleted: number;
-}
+// GASのWebアプリURLを環境変数から取得
+const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT;
 
 // GASからデータを取得
 export async function getPackingData(): Promise<{
@@ -39,11 +11,14 @@ export async function getPackingData(): Promise<{
   error?: string;
 }> {
   try {
-    if (!GAS_WEB_APP_URL) {
-      throw new Error('GAS_WEB_APP_URL が設定されていません');
+    if (!GAS_ENDPOINT) {
+      return {
+        success: false,
+        error: 'GAS endpoint is not configured'
+      };
     }
 
-    const response = await fetch(GAS_WEB_APP_URL, {
+    const response = await fetch(GAS_ENDPOINT, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -84,11 +59,11 @@ export async function updatePackingInfo(
   }
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    if (!GAS_WEB_APP_URL) {
-      throw new Error('GAS_WEB_APP_URL が設定されていません');
+    if (!GAS_ENDPOINT) {
+      throw new Error('NEXT_PUBLIC_GAS_ENDPOINT が設定されていません');
     }
 
-    const response = await fetch(GAS_WEB_APP_URL, {
+    const response = await fetch(GAS_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -137,8 +112,11 @@ export async function searchPackingData(filters: {
   error?: string;
 }> {
   try {
-    if (!GAS_WEB_APP_URL) {
-      throw new Error('GAS_WEB_APP_URL が設定されていません');
+    if (!GAS_ENDPOINT) {
+      return {
+        success: false,
+        error: 'GAS endpoint is not configured'
+      };
     }
 
     // GASにクエリパラメータとして送信
@@ -149,7 +127,7 @@ export async function searchPackingData(filters: {
     if (filters.quantityMin !== undefined) queryParams.append('quantityMin', filters.quantityMin.toString());
     if (filters.quantityMax !== undefined) queryParams.append('quantityMax', filters.quantityMax.toString());
 
-    const url = `${GAS_WEB_APP_URL}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const url = `${GAS_ENDPOINT}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     
     const response = await fetch(url, {
       method: 'GET',

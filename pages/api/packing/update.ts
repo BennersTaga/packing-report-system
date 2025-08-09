@@ -28,14 +28,12 @@ export default async function handler(
     }
 
     // Google Apps Script WebApp URLを取得
-    const GAS_URL = process.env.NEXT_PUBLIC_GAS_WEBAPP_URL;
-    
-    console.log('GAS_URL:', GAS_URL); // デバッグ用
-    
-    if (!GAS_URL) {
+    const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT;
+
+    if (!GAS_ENDPOINT) {
       return res.status(500).json({
         success: false,
-        error: 'GAS WebApp URLが設定されていません'
+        error: 'GAS endpoint is not configured'
       });
     }
 
@@ -54,7 +52,7 @@ export default async function handler(
     console.log('GASに送信するデータ:', gasPayload); // デバッグ用
 
     // GASに更新リクエストを送信
-    const gasResponse = await fetch(GAS_URL, {
+    const gasResponse = await fetch(GAS_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
