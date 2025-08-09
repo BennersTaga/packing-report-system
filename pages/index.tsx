@@ -124,7 +124,7 @@ const Home: NextPage = () => {
 
       if (data.success) {
         toast.success('梱包が完了しました');
-        await fetchData(); // データを再取得
+        await applyFilters(); // 現在のフィルター条件を維持して再取得
       } else {
         toast.error(data.error || '更新に失敗しました');
       }

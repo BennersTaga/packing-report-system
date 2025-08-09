@@ -1,9 +1,29 @@
+// lib/gas-sheets.ts
+// サーバー専用：GAS Web App と通信するラッパ
+// 型は分離された packing-types から取り込み
 import { PackingItem, PackingStats } from './packing-types';
 
-// GASのWebアプリURLを環境変数から取得
-const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT;
+const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT as string | undefined;
 
-// GASからデータを取得
+function ensureEndpoint(): string {
+  if (!GAS_ENDPOINT || GAS_ENDPOINT.trim() === '') {
+    throw new Error('GAS endpoint is not configured');
+  }
+  return GAS_ENDPOINT;
+}
+
+function buildUrl(base: string, params?: Record<string, string | number | undefined>) {
+  if (!params) return base;
+  const search = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue;
+    search.append(k, String(v));
+  }
+  const qs = search.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+// GAS から一覧を取得
 export async function getPackingData(): Promise<{
   success: boolean;
   data?: PackingItem[];
@@ -11,45 +31,34 @@ export async function getPackingData(): Promise<{
   error?: string;
 }> {
   try {
-    if (!GAS_ENDPOINT) {
-      return {
-        success: false,
-        error: 'GAS endpoint is not configured'
-      };
-    }
-
-    const response = await fetch(GAS_ENDPOINT, {
+    const url = ensureEndpoint();
+    const res = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
+      // サーバー側で実行想定
+      cache: 'no-store',
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+    const json = await res.json();
 
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'GASからのエラー');
-    }
+    if (!json?.success) throw new Error(json?.error || 'GAS error');
 
     return {
       success: true,
-      data: result.data,
-      stats: result.stats,
+      data: json.data as PackingItem[],
+      stats: json.stats as PackingStats,
     };
-  } catch (error) {
-    console.error('GASデータ取得エラー:', error);
+  } catch (err) {
+    console.error('getPackingData error:', err);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'データの取得に失敗しました',
+      error: err instanceof Error ? err.message : 'データの取得に失敗しました',
     };
   }
 }
 
-// 梱包情報を更新（GAS経由）
+// 梱包情報を更新（POST）
 export async function updatePackingInfo(
   rowIndex: number,
   packingData: {
@@ -59,15 +68,10 @@ export async function updatePackingInfo(
   }
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    if (!GAS_ENDPOINT) {
-      throw new Error('NEXT_PUBLIC_GAS_ENDPOINT が設定されていません');
-    }
-
-    const response = await fetch(GAS_ENDPOINT, {
+    const url = ensureEndpoint();
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'updatePacking',
         rowIndex,
@@ -75,36 +79,31 @@ export async function updatePackingInfo(
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
-    }
+    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+    const json = await res.json();
 
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'GASからのエラー');
-    }
+    if (!json?.success) throw new Error(json?.error || 'GAS error');
 
-    return {
-      success: true,
-      message: result.message,
-    };
-  } catch (error) {
-    console.error('GAS更新エラー:', error);
+    return { success: true, message: json.message };
+  } catch (err) {
+    console.error('updatePackingInfo error:', err);
     return {
       success: false,
-      error: error instanceof Error ? error.message : '更新に失敗しました',
+      error: err instanceof Error ? err.message : '更新に失敗しました',
     };
   }
 }
 
-// 検索機能（GAS経由）
+// 条件検索（GET）
 export async function searchPackingData(filters: {
   date?: string;
   product?: string;
   status?: string;
   quantityMin?: number;
   quantityMax?: number;
+  // 将来の拡張（ページネーションなど）:
+  limit?: number;
+  offset?: number;
 }): Promise<{
   success: boolean;
   data?: PackingItem[];
@@ -112,94 +111,38 @@ export async function searchPackingData(filters: {
   error?: string;
 }> {
   try {
-    if (!GAS_ENDPOINT) {
-      return {
-        success: false,
-        error: 'GAS endpoint is not configured'
-      };
-    }
-
-    // GASにクエリパラメータとして送信
-    const queryParams = new URLSearchParams();
-    if (filters.date) queryParams.append('date', filters.date);
-    if (filters.product) queryParams.append('product', filters.product);
-    if (filters.status) queryParams.append('status', filters.status);
-    if (filters.quantityMin !== undefined) queryParams.append('quantityMin', filters.quantityMin.toString());
-    if (filters.quantityMax !== undefined) queryParams.append('quantityMax', filters.quantityMax.toString());
-
-    const url = `${GAS_ENDPOINT}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const base = ensureEndpoint();
+    const url = buildUrl(base, {
+      date: filters.date,
+      product: filters.product,
+      status: filters.status,
+      quantityMin: filters.quantityMin,
+      quantityMax: filters.quantityMax,
+      limit: filters.limit,
+      offset: filters.offset,
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
-    }
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
 
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'GASからのエラー');
-    }
+    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+    const json = await res.json();
 
-    // クライアント側でフィルタリング（GASでは日付フィルターのみ実装）
-    let filteredData = result.data;
-
-    // 味付け種類フィルター
-    if (filters.product) {
-      filteredData = filteredData.filter((item: PackingItem) =>
-        item.seasoningType && item.seasoningType.includes(filters.product!)
-      );
-    }
-
-    // ステータスフィルター
-    if (filters.status) {
-      filteredData = filteredData.filter((item: PackingItem) => 
-        item.status === filters.status
-      );
-    }
-
-    // 数量フィルター
-    if (filters.quantityMin !== undefined || filters.quantityMax !== undefined) {
-      filteredData = filteredData.filter((item: PackingItem) => {
-        const quantity = item.quantity;
-        const min = filters.quantityMin || 0;
-        const max = filters.quantityMax || Infinity;
-        return quantity >= min && quantity <= max;
-      });
-    }
-
-    // フィルター後の統計を再計算
-    const today = new Date().toDateString();
-    const stats: PackingStats = {
-      total: filteredData.length,
-      pending: filteredData.filter((item: PackingItem) => item.status === '未処理').length,
-      completed: filteredData.filter((item: PackingItem) => item.status === '完了').length,
-      todayCompleted: filteredData.filter((item: PackingItem) => {
-        if (item.status !== '完了' || !item.packingInfo.date) return false;
-        try {
-          const itemDate = new Date(item.packingInfo.date).toDateString();
-          return today === itemDate;
-        } catch (error) {
-          return false;
-        }
-      }).length,
-    };
+    if (!json?.success) throw new Error(json?.error || 'GAS error');
 
     return {
       success: true,
-      data: filteredData,
-      stats,
+      data: json.data as PackingItem[],
+      stats: json.stats as PackingStats,
     };
-  } catch (error) {
-    console.error('GAS検索エラー:', error);
+  } catch (err) {
+    console.error('searchPackingData error:', err);
     return {
       success: false,
-      error: error instanceof Error ? error.message : '検索に失敗しました',
+      error: err instanceof Error ? err.message : '検索に失敗しました',
     };
   }
 }
