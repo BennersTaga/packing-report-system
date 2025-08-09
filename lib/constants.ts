@@ -9,7 +9,8 @@ export const COLUMN_MAPPING = {
 
 // 保管場所の選択肢
 export const STORAGE_LOCATIONS = [
-  '仮置きパレット(作業途中) ',
+  'ダンボール/ロジカム出荷',
+　'仮置きパレット(作業途中) ',
 　'パレット①',
   'パレット②',
   'パレット③',
