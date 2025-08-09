@@ -9,14 +9,15 @@ export const COLUMN_MAPPING = {
 
 // 保管場所の選択肢
 export const STORAGE_LOCATIONS = [
-  'パレット①',
+  '仮置きパレット(作業途中) ',
+　'パレット①',
   'パレット②',
   'パレット③',
   'パレット④',
   'パレット⑤',
   'パレット⑥',
   'パレット⑦',
-  '台車',
+  '台車(パレットに置き場ないもの)',
 ] as const;
 
 // ステータスの定義
@@ -33,7 +34,7 @@ export const API_ENDPOINTS = {
 } as const;
 
 // 更新間隔（ミリ秒）
-export const REFRESH_INTERVAL = 30000; // 30秒
+export const REFRESH_INTERVAL = 0; // 更新なし
 
 // エラーメッセージ
 export const ERROR_MESSAGES = {
