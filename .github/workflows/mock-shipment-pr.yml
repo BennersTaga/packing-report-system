@@ -246,10 +246,17 @@ jobs:
           EOF
           fi
 
+      # ▼ 追加1: gitユーザー設定（Create PR の直前）
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}   # ▼ 追加2: トークン指定
           branch: feat/mock-shipment-ui
           title: "feat(mock-shipment-ui): add mock shipment page and unify GAS endpoint"
           body: |
