@@ -2,9 +2,7 @@ name: Auto PR: mock shipment UI
 
 on:
   push:
-    branches: [main]
-    paths:
-      - ".github/workflows/mock-shipment-pr.yml"
+    branches: [main]          # ← パス制限を外す
   workflow_dispatch: {}
 
 permissions:
