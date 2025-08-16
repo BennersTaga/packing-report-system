@@ -25,9 +25,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          BRANCH="feat/mock-shipment-ui"
-          git checkout -B "$BRANCH"
-
           # 1) 既存ファイルの置換: NEXT_PUBLIC_GAS_ENDPOINT → GAS_ENDPOINT
           for f in \
             lib/gas-sheets.ts \
@@ -246,18 +243,14 @@ jobs:
           EOF
           fi
 
-      # ▼ 追加1: gitユーザー設定（Create PR の直前）
-      - name: Configure git user
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}   # ▼ 追加2: トークン指定
+          token: ${{ secrets.GITHUB_TOKEN }}
           branch: feat/mock-shipment-ui
+          base: main
+          commit-message: "feat(mock-shipment-ui): add mock shipment page and unify GAS endpoint"
           title: "feat(mock-shipment-ui): add mock shipment page and unify GAS endpoint"
           body: |
             GAS_ENDPOINTに統一し、/mock/shipment を追加。ケースインセンシティブ検索／在庫0無効／重複防止／送信中ガード／成功/失敗通知を実装。
