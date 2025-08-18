@@ -1,15 +1,19 @@
 name: Auto PR: mock shipment UI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - ".github/workflows/auto-pr-mock-shipment.yml"
-  workflow_dispatch: {}
 
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: auto-pr-mock-shipment
+  cancel-in-progress: false
 
 jobs:
   pr:
@@ -20,19 +24,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply changes (unify env / add pages / docs / remove old WF on feature)
+      - name: Apply changes (unify env / add pages / docs / remove failing WF on branch)
         shell: bash
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
 
-          # 1) 既存ファイルの置換（あれば）
-          files=( \
-            "lib/gas-sheets.ts" \
-            "pages/api/packing/index.ts" \
-            "pages/api/packing/search.ts" \
-            "pages/api/packing/update.ts" \
-          )
-          for f in "${files[@]}"; do
+          # 1) 既存ファイルの置換: NEXT_PUBLIC_GAS_ENDPOINT → GAS_ENDPOINT
+          for f in \
+            lib/gas-sheets.ts \
+            pages/api/packing/index.ts \
+            pages/api/packing/search.ts \
+            pages/api/packing/update.ts
+          do
             if [[ -f "$f" ]]; then
               sed -i 's/process\.env\.NEXT_PUBLIC_GAS_ENDPOINT/process.env.GAS_ENDPOINT/g' "$f" || true
             fi
@@ -43,18 +46,18 @@ jobs:
 
           # 3) /pages/api/test-env.ts を追加/上書き
           mkdir -p pages/api
-          cat > pages/api/test-env.ts <<'EOF'
+          cat > pages/api/test-env.ts <<'TS'
           import type { NextApiRequest, NextApiResponse } from 'next';
           export default function handler(req: NextApiRequest, res: NextApiResponse) {
             res.status(200).json({
               GAS_ENDPOINT: process.env.GAS_ENDPOINT ? '設定済み' : '未設定',
             });
           }
-          EOF
+          TS
 
           # 4) /pages/mock/shipment.tsx を新規追加
           mkdir -p pages/mock
-          cat > pages/mock/shipment.tsx <<'EOF'
+          cat > pages/mock/shipment.tsx <<'TSX'
           import React, { useEffect, useMemo, useState } from 'react';
 
           type PackingItem = {
@@ -106,14 +109,26 @@ jobs:
 
             useEffect(() => { search(); }, []);
 
-            type Row = { key: string; rowIndex: number; location: string; quantity: string; user: string };
+            type Row = {
+              key: string;
+              rowIndex: number;
+              location: string;
+              quantity: string;
+              user: string;
+            };
             const [rows, setRows] = useState<Row[]>([]);
 
             function addToEditor(item: PackingItem) {
               const key = `${item.rowIndex}_${item.packingInfo.location}`;
-              if (rows.some(r => r.key === key)) return; // 重複防止
+              if (rows.some(r => r.key === key)) return; // 重複抑止
               if (item.quantity <= 0) return;            // 在庫0は無効
-              setRows(prev => [...prev, { key, rowIndex: item.rowIndex, location: item.packingInfo.location, quantity: '1', user: item.packingInfo.user || '' }]);
+              setRows(prev => [...prev, {
+                key,
+                rowIndex: item.rowIndex,
+                location: item.packingInfo.location,
+                quantity: '1',
+                user: item.packingInfo.user || '',
+              }]);
             }
 
             const anyInvalid = rows.some(r => !r.quantity || Number(r.quantity) <= 0);
@@ -127,7 +142,10 @@ jobs:
                   const res = await fetch('/api/packing/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rowIndex: r.rowIndex, packingData: { location: r.location, quantity: r.quantity, user: r.user } }),
+                    body: JSON.stringify({
+                      rowIndex: r.rowIndex,
+                      packingData: { location: r.location, quantity: r.quantity, user: r.user },
+                    }),
                   });
                   const j = await res.json();
                   if (!j.success) throw new Error(j.error || 'unknown');
@@ -144,7 +162,9 @@ jobs:
 
             const filtered = useMemo(() => {
               const t = text.toLocaleLowerCase();
-              return items.filter(item => !t || item.manufactureProduct.toLocaleLowerCase().includes(t));
+              return items.filter(item =>
+                !t || item.manufactureProduct.toLocaleLowerCase().includes(t)
+              );
             }, [items, text]);
 
             return (
@@ -178,15 +198,28 @@ jobs:
                   ) : (
                     <table className="min-w-full text-sm mb-3">
                       <thead>
-                        <tr className="text-left"><th className="p-1">ロケーション</th><th className="p-1">数量</th><th className="p-1">担当</th><th></th></tr>
+                        <tr className="text-left">
+                          <th className="p-1">ロケーション</th>
+                          <th className="p-1">数量</th>
+                          <th className="p-1">担当</th>
+                          <th></th>
+                        </tr>
                       </thead>
                       <tbody>
                         {rows.map(r => (
                           <tr key={r.key}>
-                            <td className="p-1"><input value={r.location} onChange={e => setRows(prev => prev.map(x => x.key === r.key ? { ...x, location: e.target.value } : x))} className="border px-1" /></td>
-                            <td className="p-1"><input type="number" min={1} value={r.quantity} onChange={e => setRows(prev => prev.map(x => x.key === r.key ? { ...x, quantity: e.target.value } : x))} className="border px-1" /></td>
-                            <td className="p-1"><input value={r.user} onChange={e => setRows(prev => prev.map(x => x.key === r.key ? { ...x, user: e.target.value } : x))} className="border px-1" /></td>
-                            <td className="p-1"><button onClick={() => setRows(prev => prev.filter(x => x.key !== r.key))} className="text-xs text-red-600">削除</button></td>
+                            <td className="p-1">
+                              <input value={r.location} onChange={e => setRows(prev => prev.map(x => x.key === r.key ? { ...x, location: e.target.value } : x))} className="border px-1" />
+                            </td>
+                            <td className="p-1">
+                              <input type="number" min={1} value={r.quantity} onChange={e => setRows(prev => prev.map(x => x.key === r.key ? { ...x, quantity: e.target.value } : x))} className="border px-1" />
+                            </td>
+                            <td className="p-1">
+                              <input value={r.user} onChange={e => setRows(prev => prev.map(x => x.key === r.key ? { ...x, user: e.target.value } : x))} className="border px-1" />
+                            </td>
+                            <td className="p-1">
+                              <button onClick={() => setRows(prev => prev.filter(x => x.key !== r.key))} className="text-xs text-red-600">削除</button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -202,20 +235,20 @@ jobs:
               </div>
             );
           }
-          EOF
+          TSX
 
           # 5) README 追記（未記載なら）
           if ! grep -q "## Mock Shipment ページの確認" README.md 2>/dev/null; then
-            cat >> README.md <<'EOF'
+            cat >> README.md <<'MD'
 
           ## Mock Shipment ページの確認
 
           開発用のモック出荷ページ `/mock/shipment` を利用するには `.env.local` に `GAS_ENDPOINT=<GAS WebApp URL>` を設定してください（このファイルはコミットしないでください）。
           設定後 `npm run dev` を実行し、ブラウザで `http://localhost:3000/mock/shipment` にアクセスして動作を確認します。
-          EOF
+          MD
           fi
 
-          # 6) 失敗していた古い Workflow は feature ブランチでのみ削除（mainは触らない）
+          # 6) 失敗中の古いWFはブランチで削除（PRに含める）
           rm -f .github/workflows/mock-shipment-pr.yml || true
 
       - name: Create Pull Request
@@ -236,4 +269,4 @@ jobs:
           draft: false
 
       - name: Show PR URL
-        run: echo "PR_URL=${{ steps.cpr.outputs['pull-request-url'] }}"
+        run: echo "PR_URL=${{ steps.cpr.outputs.pull-request-url }}"
