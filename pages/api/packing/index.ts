@@ -9,7 +9,7 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT;
+  const GAS_ENDPOINT = process.env.GAS_ENDPOINT;
   if (!GAS_ENDPOINT) {
     return res.status(500).json({
       success: false,
