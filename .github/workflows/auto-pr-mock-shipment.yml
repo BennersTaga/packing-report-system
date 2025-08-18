@@ -10,6 +10,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write   # ← これを追加
+
 
 jobs:
   pr:
@@ -229,7 +231,6 @@ jobs:
             1. `.env.local` に `GAS_ENDPOINT=<GAS WebApp URL>` を設定（コミット禁止）
             2. `npm ci && npm run dev`
             3. `http://localhost:3000/mock/shipment` にアクセスして検索・出荷登録を確認
-          labels: automated
           draft: false
 
       - name: Show PR URL
