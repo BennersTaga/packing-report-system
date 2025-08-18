@@ -3,7 +3,7 @@
 // 型は分離された packing-types から取り込み
 import { PackingItem, PackingStats } from './packing-types';
 
-const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT as string | undefined;
+const GAS_ENDPOINT = process.env.GAS_ENDPOINT as string | undefined;
 
 function ensureEndpoint(): string {
   if (!GAS_ENDPOINT || GAS_ENDPOINT.trim() === '') {

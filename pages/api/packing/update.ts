@@ -31,7 +31,7 @@ export default async function handler(
     }
 
     // GAS Web App のエンドポイント
-    const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT;
+    const GAS_ENDPOINT = process.env.GAS_ENDPOINT;
     if (!GAS_ENDPOINT) {
       return res.status(500).json({
         success: false,
